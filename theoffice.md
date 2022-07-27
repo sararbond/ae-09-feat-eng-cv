@@ -1,6 +1,6 @@
 The Office
 ================
-Mine Çetinkaya-Rundel
+Sara Bond
 
 ``` r
 library(tidyverse)
@@ -221,28 +221,76 @@ office_wflow <-  workflow() %>%
 
 ### Exercise 8 - Fit the model to training data and interpret a couple of the slope coefficients.
 
+``` r
+office_fit <-  office_wflow %>% 
+  fit(data = office_train)
+
+tidy(office_fit)
+```
+
+    ## # A tibble: 12 × 5
+    ##    term           estimate std.error statistic  p.value
+    ##    <chr>             <dbl>     <dbl>     <dbl>    <dbl>
+    ##  1 (Intercept)    6.34     0.298       21.2    1.24e-43
+    ##  2 season         0.0542   0.0224       2.42   1.68e- 2
+    ##  3 episode        0.0125   0.00439      2.85   5.05e- 3
+    ##  4 total_votes    0.000372 0.0000390    9.55   1.25e-16
+    ##  5 lines_jim      0.653    0.679        0.962  3.38e- 1
+    ##  6 lines_pam      0.0329   0.696        0.0473 9.62e- 1
+    ##  7 lines_michael  0.111    0.544        0.204  8.39e- 1
+    ##  8 lines_dwight   0.806    0.522        1.54   1.25e- 1
+    ##  9 halloween_X1  -0.00340  0.181       -0.0188 9.85e- 1
+    ## 10 valentine_X1  -0.0573   0.180       -0.318  7.51e- 1
+    ## 11 christmas_X1   0.285    0.129        2.22   2.82e- 2
+    ## 12 michael_X1     0.585    0.141        4.15   6.01e- 5
+
 ### Exercise 9 - Perform 5-fold cross validation and view model performance metrics.
 
 ``` r
 set.seed(345)
-folds <- vfold_cv(___, v = ___)
+folds <- vfold_cv(office_train, v = 5)
 folds
-
-set.seed(456)
-office_fit_rs <- ___ %>%
-  ___(___)
-
-___(office_fit_rs)
 ```
 
-    ## Error: <text>:2:20: unexpected input
-    ## 1: set.seed(345)
-    ## 2: folds <- vfold_cv(__
-    ##                       ^
+    ## #  5-fold cross-validation 
+    ## # A tibble: 5 × 2
+    ##   splits           id   
+    ##   <list>           <chr>
+    ## 1 <split [111/28]> Fold1
+    ## 2 <split [111/28]> Fold2
+    ## 3 <split [111/28]> Fold3
+    ## 4 <split [111/28]> Fold4
+    ## 5 <split [112/27]> Fold5
+
+``` r
+set.seed(456)
+office_fit_rs <- office_wflow %>%
+  fit_resamples(folds)
+
+collect_metrics(office_fit_rs)
+```
+
+    ## # A tibble: 2 × 6
+    ##   .metric .estimator  mean     n std_err .config             
+    ##   <chr>   <chr>      <dbl> <int>   <dbl> <chr>               
+    ## 1 rmse    standard   0.367     5  0.0512 Preprocessor1_Model1
+    ## 2 rsq     standard   0.543     5  0.0386 Preprocessor1_Model1
 
 ### Exercise 10 - Use your model to make predictions for the testing data and calculate the RMSE. Also use the model developed in the [cross validation lesson](https://ids-s1-20.github.io/slides/week-10/w10-d02-cross-validation/w10-d02-cross-validation.html) to make predictions for the testing data and calculate the RMSE as well. Which model did a better job in predicting IMDB scores for the testing data?
 
 #### New model
+
+``` r
+office_test_pred <- predict(office_fit, new_data = office_test) %>% 
+  bind_cols(office_test%>%select(imdb_rating, episode_name))
+
+rmse(office_test_pred, truth = imdb_rating, estimate = .pred)
+```
+
+    ## # A tibble: 1 × 3
+    ##   .metric .estimator .estimate
+    ##   <chr>   <chr>          <dbl>
+    ## 1 rmse    standard       0.401
 
 #### Old model
 
@@ -267,11 +315,32 @@ office_fit_old <- office_wflow_old %>%
   fit(data = office_train)
 
 tidy(office_fit_old)
-
-___
 ```
 
-    ## Error: <text>:22:2: unexpected input
-    ## 21: 
-    ## 22: __
-    ##      ^
+    ## # A tibble: 12 × 5
+    ##    term                estimate std.error statistic  p.value
+    ##    <chr>                  <dbl>     <dbl>     <dbl>    <dbl>
+    ##  1 (Intercept)         7.20     0.188        38.4   9.92e-72
+    ##  2 season             -0.0501   0.0140       -3.57  5.04e- 4
+    ##  3 episode             0.0449   0.00877       5.11  1.13e- 6
+    ##  4 total_votes         0.000360 0.0000404     8.89  4.99e-15
+    ##  5 air_date_month_Feb -0.145    0.139        -1.04  2.99e- 1
+    ##  6 air_date_month_Mar -0.376    0.134        -2.81  5.69e- 3
+    ##  7 air_date_month_Apr -0.309    0.131        -2.36  1.96e- 2
+    ##  8 air_date_month_May -0.128    0.162        -0.791 4.30e- 1
+    ##  9 air_date_month_Sep  0.512    0.178         2.88  4.63e- 3
+    ## 10 air_date_month_Oct  0.270    0.139         1.95  5.38e- 2
+    ## 11 air_date_month_Nov  0.116    0.126         0.924 3.57e- 1
+    ## 12 air_date_month_Dec  0.407    0.165         2.47  1.49e- 2
+
+``` r
+office_test_pred_old <-  predict(office_fit_old, new_data = office_test) %>% 
+  bind_cols(office_test%>%select(imdb_rating, episode_name))
+
+rmse(office_test_pred_old, truth = imdb_rating, estimate = .pred)
+```
+
+    ## # A tibble: 1 × 3
+    ##   .metric .estimator .estimate
+    ##   <chr>   <chr>          <dbl>
+    ## 1 rmse    standard       0.403
